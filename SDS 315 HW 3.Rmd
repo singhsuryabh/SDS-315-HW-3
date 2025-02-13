@@ -1,0 +1,364 @@
+---
+title: "SDS 315 HW 3"
+author: "Suryabh Singh"
+date: "2025-02-12"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Upload Dataset
+```{r}
+library(ggplot2)
+library(dplyr)
+set.seed(123)
+gasprices <- read.csv("/Users/suryabhsingh/Desktop/SDS 315/gasprices.csv")
+
+str(gasprices)
+head(gasprices)
+```
+
+##**Question 1**
+# Theory A: Competition and Gas Prices
+
+```{r}
+library(mosaic)
+library(ggplot2)
+library(dplyr)
+set.seed(123) 
+# Run Bootstrap for Competition
+boot_prices_competition <- do(10000) * diffmean(Price ~ Competitors, data = resample(gasprices))
+
+# Compute 95% Confidence Interval
+confint(boot_prices_competition, level = 0.95)
+
+# Histogram of Bootstrap Distribution
+ggplot(boot_prices_competition, aes(x = diffmean)) + 
+  geom_histogram(binwidth = 0.01, fill = 'blue', alpha = 0.7) + 
+  labs(title = "Bootstrap Distribution of Price Difference by Competition",
+       x = "Mean Difference in Price", y = "Frequency")
+```
+
+**Claim:** Gas stations charge more if they lack direct competition in sight.
+
+**Evidence:** The 95% confidence interval for the mean difference in price between stations with and without competitors includes 0, indicating no statistically significant difference.
+
+**Conclusion:** The data does not support the theory that gas stations without competition charge more.
+
+---
+
+# Theory B: Income and Gas Prices
+
+```{r}
+# Bootstrap Analysis for Income Correlation
+boot_prices_income <- do(10000) * cor(resample(gasprices)$Price, resample(gasprices)$Income)
+
+# Convert to DataFrame and Rename Column Properly
+boot_prices_income <- data.frame(Correlation = boot_prices_income[,1])
+
+# Confidence Interval
+confint_income <- confint(boot_prices_income, level = 0.95)
+
+# Histogram of Bootstrap Distribution
+ggplot(boot_prices_income, aes(x = Correlation)) + 
+  geom_histogram(binwidth = 0.01, fill = 'green', alpha = 0.7) + 
+  labs(title = "Bootstrap Distribution of Correlation Between Income and Price",
+       x = "Correlation", y = "Frequency")
+```
+
+**Claim:** Gas stations in higher-income areas have higher gas prices.
+
+**Evidence:**  The bootstrap confidence interval for the correlation between median household income and gas prices does not include 0, suggesting that there is a statistically significant positive correlation. This means that, with 95% confidence, we can say that gas prices tend to be higher in wealthier areas.
+**Conclusion:** This analysis supports the claim that gas stations in wealthier neighborhoods tend to charge higher prices. This data suggests a meaningful association between income and gas prices.
+
+---
+
+# Theory C: Stoplights and Gas Prices
+
+```{r}
+boot_prices_stoplight <- do(10000) * diffmean(Price ~ Stoplight, data = resample(gasprices))
+confint_stoplight <- confint(boot_prices_stoplight, level = .95)
+ggplot(boot_prices_stoplight, aes(x=diffmean)) + geom_histogram(binwidth=.01, fill='red', alpha=0.7) + 
+  labs(title="Bootstrap Distribution of Price Difference by Stoplight Presence", x="Mean Difference in Price", y="Frequency")
+```
+
+**Claim:** Gas stations near stoplights charge more.
+
+**Evidence:** The 95% confidence interval for the mean price difference between gas stations near stoplights and those further away includes 0, meaning that there is no statistically significant difference in gas prices based on proximity to stoplights. The confidence interval indicates that the true mean difference is likely small and could be positive or negative.
+
+**Conclusion:** The data does not support the theory that gas stations near stoplights charge more. While factors like traffic congestion  might influence gas station pricing strategies, this dataset does not provide valid statistical evidence of such an effect.
+
+---
+
+# Theory D: Highway Access and Gas Prices
+
+```{r}
+# Bootstrap Analysis for Highway Access
+boot_prices_highway <- do(10000) * diffmean(Price ~ Highway, data = resample(gasprices))
+
+# Confidence Interval
+confint_highway <- confint(boot_prices_highway, level = 0.95)
+
+# Histogram of Bootstrap Distribution
+ggplot(boot_prices_highway, aes(x = diffmean)) + 
+  geom_histogram(binwidth = 0.01, fill = 'purple', alpha = 0.7) + 
+  labs(title = "Bootstrap Distribution of Price Difference by Highway Access",
+       x = "Mean Difference in Price", y = "Frequency")
+```
+
+**Claim:** Gas stations with highway access charge more.
+
+**Evidence:** The confidence interval for the mean price difference between highway-accessible gas stations and those further away does not contain 0, indicating a statistically significant difference. This suggests that gas stations located near highways tend to have higher prices compared to those further from major roads. 
+
+**Conclusion:** The theory is supported, confirming that highway-accessible stations tend to charge more.
+
+---
+
+# Theory E: Shell vs. Other Brands
+
+```{r}
+# Bootstrap Analysis for Shell Prices
+boot_prices_shell <- do(10000) * diffmean(Price ~ (Brand == "Shell"), data = resample(gasprices))
+
+# Confidence Interval
+confint_shell <- confint(boot_prices_shell, level = 0.95)
+
+# Histogram of Bootstrap Distribution
+ggplot(boot_prices_shell, aes(x = diffmean)) + 
+  geom_histogram(binwidth = 0.01, fill = 'orange', alpha = 0.7) + 
+  labs(title = "Bootstrap Distribution of Price Difference: Shell vs. Other Brands",
+       x = "Mean Difference in Price", y = "Frequency")
+```
+
+**Claim:** Shell charges more than other brands.
+
+**Evidence:** The 95% confidence interval for the mean price difference between Shell gas stations and other brands does not contain 0, indicating a statistically significant difference. This suggests that Shell consistently charges higher prices compared to competitors.
+
+**Conclusion:** The theory is supported, showing that Shell gas stations have higher prices on average.
+
+
+##**Question 2**
+
+```{r}
+library(ggplot2)
+library(dplyr)
+sclass <- read.csv("/Users/suryabhsingh/Desktop/SDS 315/sclass.csv")
+```
+
+#Part A
+```{r}
+library(dplyr)
+library(boot)
+sclass_filtered <- sclass %>%
+  filter(year == 2011, trim == "63 AMG")
+mean_mileage <- function(data, indices) {
+  return(mean(data$mileage[indices]))
+}
+set.seed(123)  
+boot_results <- boot(data = sclass_filtered, statistic = mean_mileage, R = 10000)
+ci <- boot.ci(boot_results, type = "perc")
+cat("95% Bootstrap Confidence Interval for Mean Mileage (2011 S-Class 63 AMG):\n")
+print(ci$percent)
+```
+
+#Part B
+```{r}
+library(tidyverse)
+library(boot)
+sclass_2014_550 <- sclass %>%
+  filter(year == 2014, trim == "550") %>%
+  mutate(isBlack = color == "Black")
+boot_prop <- function(data, indices) {
+  return(mean(data[indices]))
+}
+set.seed(123)  # For reproducibility
+boot_results <- boot(sclass_2014_550$isBlack, boot_prop, R = 10000)
+ci <- boot.ci(boot_results, type = "perc")
+ci$percent
+```
+
+
+## **Problem 3**
+
+#Uploading Dataset
+```{r}
+nbcpilotsurvey <- read.csv("/Users/suryabhsingh/Desktop/SDS 315/nbc_pilotsurvey.csv")
+```
+# **Part A
+```{r}
+# Load the dataset
+nbc_data <- read.csv("/Users/suryabhsingh/Desktop/SDS 315/nbc_pilotsurvey.csv")
+
+# Ensure the dataset loads correctly
+str(nbc_data)
+
+# Filter data for "Living with Ed" and "My Name is Earl"
+filtered_data <- nbc_data %>%
+  filter(Show %in% c("Living with Ed", "My Name is Earl"))
+
+# Extract Q1_Happy ratings for each show
+ed_happy <- filtered_data %>%
+  filter(Show == "Living with Ed") %>%
+  pull(Q1_Happy)
+
+earl_happy <- filtered_data %>%
+  filter(Show == "My Name is Earl") %>%
+  pull(Q1_Happy)
+
+# Ensure there are no missing values
+ed_happy <- na.omit(ed_happy)
+earl_happy <- na.omit(earl_happy)
+
+# Bootstrap function for mean difference
+boot_diff <- function(data, indices) {
+  sample_ed <- sample(ed_happy, length(ed_happy), replace = TRUE)
+  sample_earl <- sample(earl_happy, length(earl_happy), replace = TRUE)
+  return(mean(sample_ed) - mean(sample_earl))
+}
+
+# Set seed for reproducibility
+set.seed(123)
+
+# Perform bootstrap with correct data
+boot_results <- boot(data = filtered_data, statistic = boot_diff, R = 10000)
+
+# Compute 95% confidence interval
+ci <- boot.ci(boot_results, type = "perc")
+
+# Output confidence interval
+ci$percent
+```
+**Question** We want to figure out which show makes people happier: Living with Ed or My Name is Earl.
+
+**Approach** = To compare the happiness levels of viewers of both shows, I used bootstrap sampling with 10,000 iterations. The goal was to estimate the mean difference in happiness ratings and construct a 95% confidence interval. If zero is inside the confidence interval, that means there's no strong evidence that one show is significantly happier than the other.
+
+**Results** = The estimated mean difference in happiness between the two shows was 0.149, meaning that Living with Ed had slightly higher happiness ratings on average. However, the 95% confidence interval ranged from -0.104 to 0.395. Since this range includes zero, we can’t say with confidence that Living with Ed actually makes people happier.
+
+**Conclusion** = Even though Living with Ed had a slightly higher happiness rating on average, the data doesn't prove that it's actually a happier show. The confidence interval includes both positive and negative values, so the difference might just be due to randomness.
+
+# **Part B
+```{r}
+# Filter data for "The Biggest Loser" and "The Apprentice: Los Angeles"
+filtered_data_reality <- nbc_data %>%
+  filter(Show %in% c("The Biggest Loser", "The Apprentice: Los Angeles"))
+
+# Extract annoyance ratings for each show
+loser_annoyed <- filtered_data_reality %>%
+  filter(Show == "The Biggest Loser") %>%
+  pull(Q1_Annoyed)
+
+apprentice_annoyed <- filtered_data_reality %>%
+  filter(Show == "The Apprentice: Los Angeles") %>%
+  pull(Q1_Annoyed)
+
+# Bootstrap function for mean difference
+boot_diff_annoyed <- function(data, indices) {
+  sample_loser <- sample(loser_annoyed, length(loser_annoyed), replace = TRUE)
+  sample_apprentice <- sample(apprentice_annoyed, length(apprentice_annoyed), replace = TRUE)
+  return(mean(sample_loser, na.rm = TRUE) - mean(sample_apprentice, na.rm = TRUE))
+}
+
+# Set seed for reproducibility
+set.seed(123)
+
+# Perform bootstrap
+boot_results_annoyed <- boot(data = filtered_data_reality, statistic = boot_diff_annoyed, R = 10000)
+
+# Compute 95% confidence interval
+ci_annoyed <- boot.ci(boot_results_annoyed, type = "perc")
+
+# Output confidence interval
+ci_annoyed$percent
+
+```
+
+**Question** = Between The Biggest Loser and The Apprentice: Los Angeles, which show irritated viewers more?
+
+**Approach** = I used the same bootstrap approach with 10,000 iterations to calculate the difference in annoyance ratings between the two shows. By constructing a 95% confidence interval, I wanted to see if one show had consistently higher irritation levels than the other. If the confidence interval doesn’t include zero, that would suggest a real difference between the two.
+
+**Results** = The estimated mean difference in annoyance was -0.271, meaning The Apprentice: Los Angeles had higher annoyance ratings compared to The Biggest Loser. The 95% confidence interval was (-0.525 to -0.015). Since this range does NOT include zero, it’s strong evidence that The Apprentice: Los Angeles is genuinely more annoying than The Biggest Loser
+
+**Conclusion** = Based on this analysis, The Apprentice: Los Angeles is statistically more annoying to viewers than The Biggest Loser. The confidence interval is entirely negative, meaning the difference isn’t just due to chance. 
+
+# **Part C
+```{r}
+# Filter data for "Dancing with the Stars"
+dancing_data <- nbc_data %>%
+  filter(Show == "Dancing with the Stars")
+
+# Count responses of 4 or 5 in Q2_Confusing
+confusing_count <- sum(dancing_data$Q2_Confusing >= 4, na.rm = TRUE)
+total_respondents <- nrow(dancing_data)
+
+# Sample proportion
+p_hat <- confusing_count / total_respondents
+
+# Standard error calculation
+se <- sqrt((p_hat * (1 - p_hat)) / total_respondents)
+
+# 95% Confidence Interval using normal approximation
+z_score <- qnorm(0.975)  # 1.96 for 95% confidence interval
+ci_lower <- p_hat - z_score * se
+ci_upper <- p_hat + z_score * se
+
+# Output confidence interval
+list(proportion = p_hat, lower_ci = ci_lower, upper_ci = ci_upper)
+```
+
+**Question** = How many American TV viewers would likely find Dancing with the Stars confusing?
+
+**Approach** = To answer this, I looked at the percentage of survey respondents who rated the show as "confusing" (score of 4 or 5). Then, I calculated a 95% confidence interval using the normal approximation method.
+
+**Results** = From the survey data, 7.7% of respondents found Dancing with the Stars confusing. The 95% confidence interval for this estimate ranged from 3.8% to 11.6%, meaning the true percentage of confused viewers is likely somewhere within this range.
+
+**Conclusion** = While the overall percentage of confused viewers isn’t huge, it’s still a notable portion of the audience. If 7-12% of viewers consistently struggle to follow the show, NBC might want to investigate whether certain aspects are unclear.
+
+##**Problem 4**
+
+#Uploading Dataset
+```{r}
+ebay <- read.csv("/Users/suryabhsingh/Desktop/SDS 315/ebay.csv")
+```
+
+```{r}
+# Read data
+ebay <- read.csv("/Users/suryabhsingh/Desktop/SDS 315/ebay.csv")
+
+# Load required libraries
+library(tidyverse)
+library(boot)
+
+# Manipulate data to add the revenue ratio
+ebay <- ebay %>% mutate(revenue_ratio = rev_after / rev_before)
+
+# Define treatment and control groups
+treatment_group <- ebay %>% filter(adwords_pause == 1) %>% pull(revenue_ratio)
+control_group <- ebay %>% filter(adwords_pause == 0) %>% pull(revenue_ratio)
+
+# Define bootstrapping function
+boot_diff_revenue_ratio <- function(data, indices) {
+  sample_treatment <- sample(treatment_group, length(treatment_group), replace = TRUE)
+  sample_control <- sample(control_group, length(control_group), replace = TRUE)
+  return(mean(sample_treatment) - mean(sample_control))
+}
+
+# Perform bootstrapping
+set.seed(123)
+boot_results_revenue_ratio <- boot(data = ebay, statistic = boot_diff_revenue_ratio, R = 10000)
+
+# Compute confidence intervals
+ci_revenue_ratio <- boot.ci(boot_results_revenue_ratio, type = "perc")
+ci_revenue_ratio$percent
+```
+
+**Question**: Does eBay's revenue change when it pauses its Google-sponsored search ads? Specifically, does the revenue ratio for the treatment group (where ads were paused) decrease compared to the control group (where ads were not paused)?
+
+**Approach**: To investigate this, I calculated the revenue ratio for each DMA and then compared the average ratios between the treatment and control groups. To estimate the difference more reliably, I used a bootstrap resampling method with 10,000 iterations to generate a 95% confidence interval.
+
+**Results**: The observed average difference between the treatment and control groups' revenue ratios was -0.052. The 95% confidence interval for this difference ranged from -0.091 to -0.013, which doesn’t include 0, indicating a statistically significant difference.
+
+**Conclusion**: The data suggests that pausing Google’s sponsored search ads led to a decrease in eBay’s revenue ratio. This result shows that paid search contributed significantly to eBay’s income beyond what could be expected from organic search alone.
